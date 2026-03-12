@@ -15,7 +15,7 @@ import os
 import database
 import model
 
-# ── Absolute path to this file's folder ──
+# ── Absolute path ──
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI(
@@ -24,10 +24,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware
+# ═══════════════════════════════════════════
+# CORS FIX (IMPORTANT FOR GITHUB FRONTEND)
+# ═══════════════════════════════════════════
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://padmakruthi.github.io",
+        "https://goldenbatch-ai.onrender.com",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,24 +43,31 @@ app.add_middleware(
 
 security = HTTPBearer(auto_error=False)
 
-# ───────────────── Startup ─────────────────
+# ═══════════════════════════════════════════
+# STARTUP
+# ═══════════════════════════════════════════
 
 @app.on_event("startup")
 def startup():
     print("🚀 GoldenBatch AI Backend Starting...")
     database.create_tables()
     print("✅ Database ready")
+
     database.create_default_users()
     print("✅ Default users ready")
+
     model.load_or_train_model()
     print("✅ ML Model ready")
+
     print("═══════════════════════════════════")
-    print("✅ Server running at http://localhost:8000")
-    print("🌐 Frontend at    http://localhost:8000/app")
-    print("📖 API docs at    http://localhost:8000/docs")
+    print("🌐 Backend Ready")
+    print("📖 Docs → /docs")
     print("═══════════════════════════════════")
 
-# ───────────────── Models ─────────────────
+
+# ═══════════════════════════════════════════
+# MODELS
+# ═══════════════════════════════════════════
 
 class LoginRequest(BaseModel):
     email: str
@@ -105,8 +120,6 @@ class MessageResponse(BaseModel):
     message_id: int
 
 
-# ───── Chatbot Models ─────
-
 class ChatRequest(BaseModel):
     question: str
 
@@ -115,7 +128,9 @@ class ChatResponse(BaseModel):
     answer: str
 
 
-# ───────────────── Security ─────────────────
+# ═══════════════════════════════════════════
+# SECURITY
+# ═══════════════════════════════════════════
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     if not credentials:
@@ -123,16 +138,21 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     return database.get_user_from_token(credentials.credentials)
 
 
-# ───────────────── Root ─────────────────
+# ═══════════════════════════════════════════
+# ROOT
+# ═══════════════════════════════════════════
+
 @app.get("/")
 def root():
     return {
-        "message": "GoldenBatch AI is running",
-        "frontend": "/app"
+        "message": "GoldenBatch AI Backend Running",
+        "docs": "/docs"
     }
 
 
-# ───────────────── Frontend ─────────────────
+# ═══════════════════════════════════════════
+# FRONTEND SERVE (OPTIONAL)
+# ═══════════════════════════════════════════
 
 @app.get("/app")
 def serve_frontend():
@@ -141,21 +161,23 @@ def serve_frontend():
 
 @app.get("/css/{filename}")
 def serve_css(filename: str):
-    file_path = os.path.join(BASE_DIR, "css", filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path, media_type="text/css")
-    raise HTTPException(status_code=404, detail="CSS file not found")
+    path = os.path.join(BASE_DIR, "css", filename)
+    if os.path.exists(path):
+        return FileResponse(path)
+    raise HTTPException(status_code=404)
 
 
 @app.get("/js/{filename}")
 def serve_js(filename: str):
-    file_path = os.path.join(BASE_DIR, "js", filename)
-    if os.path.exists(file_path):
-        return FileResponse(file_path, media_type="application/javascript")
-    raise HTTPException(status_code=404, detail="JS file not found")
+    path = os.path.join(BASE_DIR, "js", filename)
+    if os.path.exists(path):
+        return FileResponse(path)
+    raise HTTPException(status_code=404)
 
 
-# ───────────────── Login ─────────────────
+# ═══════════════════════════════════════════
+# LOGIN
+# ═══════════════════════════════════════════
 
 @app.post("/login", response_model=LoginResponse)
 def login(request: LoginRequest):
@@ -178,7 +200,9 @@ def login(request: LoginRequest):
     )
 
 
-# ───────────────── Prediction ─────────────────
+# ═══════════════════════════════════════════
+# PREDICT
+# ═══════════════════════════════════════════
 
 @app.post("/predict", response_model=PredictResponse)
 def predict(request: PredictRequest, user=Depends(get_current_user)):
@@ -206,10 +230,12 @@ def predict(request: PredictRequest, user=Depends(get_current_user)):
     return PredictResponse(**result)
 
 
-# ───────────────── Messaging ─────────────────
+# ═══════════════════════════════════════════
+# MESSAGES
+# ═══════════════════════════════════════════
 
 @app.post("/messages", response_model=MessageResponse)
-def send_message(request: MessageRequest, user=Depends(get_current_user)):
+def send_message(request: MessageRequest):
 
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
@@ -232,20 +258,9 @@ def get_messages(role: str = "all"):
     return {"messages": messages, "count": len(messages)}
 
 
-# ───────────────── History ─────────────────
-
-@app.get("/history")
-def get_history(user=Depends(get_current_user)):
-
-    if not user:
-        return {"predictions": [], "count": 0}
-
-    predictions = database.get_prediction_history(user["email"])
-
-    return {"predictions": predictions, "count": len(predictions)}
-
-
-# ───────────────── Golden Batch ─────────────────
+# ═══════════════════════════════════════════
+# GOLDEN BATCH
+# ═══════════════════════════════════════════
 
 @app.get("/golden")
 def get_golden():
@@ -257,7 +272,9 @@ def get_top_batches():
     return {"batches": model.get_top_batches()}
 
 
-# ───────────────── AI Training Chatbot ─────────────────
+# ═══════════════════════════════════════════
+# AI CHATBOT
+# ═══════════════════════════════════════════
 
 @app.post("/chat", response_model=ChatResponse)
 def chatbot(request: ChatRequest):
@@ -285,19 +302,16 @@ def chatbot(request: ChatRequest):
     elif "lubricant" in q:
         answer = "Lubricant concentration reduces friction during tablet compression."
 
-    elif "predict" in q or "batch" in q:
-        answer = "Enter batch parameters in the predictor and the AI model will analyze quality."
-
     else:
-        answer = "I am the GoldenBatch AI training assistant. Ask about parameters like granulation time, binder amount, drying temperature, or batch prediction."
+        answer = "Ask about granulation, binder, drying, compression, or batch prediction."
 
     return ChatResponse(answer=answer)
 
 
-# ───────────────── Run Server ─────────────────
-
-# ───────────────── Run Server ─────────────────
+# ═══════════════════════════════════════════
+# RUN SERVER
+# ═══════════════════════════════════════════
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Render provides PORT
+    port = int(os.environ.get("PORT", 10000))
     uvicorn.run("main:app", host="0.0.0.0", port=port)
