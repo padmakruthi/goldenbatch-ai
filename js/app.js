@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════
 // CONFIG — Backend URL
 // ═══════════════════════════════════════════
-const API = 'http://localhost:8000';
+const API = 'https://goldenbatch-ai.onrender.com';
 
 // ═══════════════════════════════════════════
 // STATE
