@@ -124,12 +124,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 
 # ───────────────── Root ─────────────────
-
 @app.get("/")
 def root():
     return {
         "message": "GoldenBatch AI is running",
-        "frontend": "http://localhost:8000/app"
+        "frontend": "/app"
     }
 
 
